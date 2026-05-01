@@ -146,7 +146,7 @@ function TH({ children, style }: { children: React.ReactNode; style?: React.CSSP
   )
 }
 
-function TD({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+function TD({ children, style }: { children?: React.ReactNode; style?: React.CSSProperties }) {
   return (
     <td style={{ padding: '10px 12px', verticalAlign: 'top' as const, borderBottom: `1px solid ${C.border}`, ...style }}>
       {children}
@@ -308,13 +308,13 @@ function UserDrillDown({ users, adminSecret }: { users: UserStat[]; adminSecret:
             <tfoot>
               <tr style={{ background: C.headerBg }}>
                 <TD style={{ fontWeight: 700, color: C.textSub, fontSize: 10, textTransform: 'uppercase' as const }}>Total ({runs.length})</TD>
-                <TD /><TD /><TD />
+                <TD></TD><TD></TD><TD></TD>
                 <TD><span style={{ fontFamily: 'monospace', fontWeight: 700, color: C.green }}>{runs.reduce((a,r) => a+r.newItems, 0)}</span></TD>
                 <TD><span style={{ fontFamily: 'monospace', fontWeight: 700, color: C.textSub }}>{runs.reduce((a,r) => a+r.updatedItems, 0)}</span></TD>
-                <TD />
+                <TD></TD>
                 <TD><span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: C.textSub }}>{(runs.reduce((a,r) => a+r.inputTokens, 0)/1000).toFixed(1)}k / {(runs.reduce((a,r) => a+r.outputTokens, 0)/1000).toFixed(1)}k</span></TD>
                 <TD><Money value={runs.reduce((a,r) => a+r.aiCostUsd, 0)} /></TD>
-                <TD />
+                <TD></TD>
                 <TD><Money value={runs.reduce((a,r) => a+r.fbCostUsd, 0)} dim /></TD>
                 <TD><Money value={runs.reduce((a,r) => a+r.totalCostUsd, 0)} /></TD>
                 <TD><span style={{ fontFamily: 'monospace', color: C.textDim, fontSize: 11 }}>avg {(runs.reduce((a,r) => a+r.durationMs, 0)/runs.length/1000).toFixed(1)}s</span></TD>
