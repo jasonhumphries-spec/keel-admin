@@ -48,6 +48,19 @@ interface UserStat {
   totalOutputTokens: number
   totalCostUsd:      number
   lastScanCostUsd:   number
+  lastScanAiCostUsd: number
+  lastScanFbCostUsd: number
+  totalFbReads:      number
+  totalFbWrites:     number
+  lastScanFbReads:   number
+  lastScanFbWrites:  number
+  stage1CostUsd:     number
+  stage2CostUsd:     number
+  reclassifyCostUsd: number
+  reclassifyRuns:    number
+  lastActive:        string | null
+  aiCostUsd:         number
+  fbCostUsd:         number
 }
 
 // Simple in-memory cache — avoids hammering Firestore on rapid refreshes
