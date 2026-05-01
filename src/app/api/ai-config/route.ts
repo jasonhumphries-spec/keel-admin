@@ -35,7 +35,7 @@ export type AIProvider = 'claude-haiku' | 'claude-sonnet' | 'gemini-flash' | 'ge
 
 const VALID_PROVIDERS: AIProvider[] = ['claude-haiku', 'claude-sonnet', 'gemini-flash', 'gemini-pro']
 
-export const PROVIDER_LABELS: Record<AIProvider, string> = {
+const PROVIDER_LABELS: Record<AIProvider, string> = {
   'claude-haiku':  'Claude Haiku 4.5 (Anthropic) — fastest / cheapest',
   'claude-sonnet': 'Claude Sonnet 4.6 (Anthropic)',
   'gemini-flash':  'Gemini 2.0 Flash (Google) — fastest / cheapest',
