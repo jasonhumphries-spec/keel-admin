@@ -71,7 +71,13 @@ export async function POST(req: NextRequest) {
               if (res.ok) {
                 const data = await res.json().catch(() => ({}))
                 if (data.skipped) skipped++; else done++
-              } else {
+              } else if (res.status === 401) {
+                // Auth expired — no point continuing, all items will fail
+                const data = await res.json().catch(() => ({}))
+                return NextResponse.json({
+                  ok: false,
+                  message: `Auth error: ${data.error ?? 'Token expired'}. User must sign in to Keel again to refresh their Google credentials.`,
+                })
                 failed++
                 const text = await res.text().catch(() => res.status.toString())
                 errors.push(`${itemId.slice(0,8)}: ${res.status} ${text.slice(0,80)}`)
