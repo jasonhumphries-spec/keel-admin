@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
 
         const itemIds = snap.docs.map(d => d.id)
         let done = 0, failed = 0
+        const errors: string[] = []
 
         // Process in batches of 3
         for (let i = 0; i < itemIds.length; i += 3) {
@@ -67,15 +68,25 @@ export async function POST(req: NextRequest) {
                 headers: { 'Content-Type': 'application/json' },
                 body:    JSON.stringify({ uid, itemId }),
               })
-              if (res.ok) done++; else failed++
-            } catch { failed++ }
+              if (res.ok) {
+                done++
+              } else {
+                failed++
+                const text = await res.text().catch(() => res.status.toString())
+                errors.push(`${itemId.slice(0,8)}: ${res.status} ${text.slice(0,80)}`)
+              }
+            } catch (e) {
+              failed++
+              errors.push(`${itemId.slice(0,8)}: ${String(e).slice(0,80)}`)
+            }
           }))
         }
 
+        const firstError = errors[0] ?? ''
         return NextResponse.json({
-          ok: true,
-          message: `Re-analysed ${done} / ${itemIds.length} items${failed > 0 ? ` (${failed} failed)` : ''}`,
-          done, failed, total: itemIds.length,
+          ok: failed === 0,
+          message: `Re-analysed ${done} / ${itemIds.length} items${failed > 0 ? ` (${failed} failed — ${firstError})` : ''}`,
+          done, failed, total: itemIds.length, errors: errors.slice(0, 5),
         })
       }
 
@@ -107,6 +118,13 @@ export async function POST(req: NextRequest) {
           message: `Scan complete: ${data.newItems ?? 0} new, ${data.updatedItems ?? 0} updated`,
           ...data,
         })
+      }
+
+      // ── Ping — test connectivity to keel app ──────────────────────────────
+      case 'ping': {
+        const url = `${KEEL_APP_URL}/api/ai-config`
+        const res = await fetch(url, { headers: { 'x-admin-secret': process.env.ADMIN_SECRET ?? '' } })
+        return NextResponse.json({ ok: res.ok, url, status: res.status, message: `KEEL_APP_URL: ${KEEL_APP_URL} → ${res.status}` })
       }
 
       default:

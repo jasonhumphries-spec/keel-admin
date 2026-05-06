@@ -220,6 +220,7 @@ function DevOpsCard({ adminSecret, users }: { adminSecret: string; users: UserSt
         {btn('Re-analyse all active', 'reanalyse_all', '#3D7A6B')}
         {btn('Calendar check', 'calendar_check', '#4A7FA5')}
         {btn('Flush items + signals', 'flush_items', C.red)}
+        {btn('Ping keel app', 'ping', C.textDim)}
       </div>
 
       {status && (
