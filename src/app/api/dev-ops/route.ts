@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
 
         // Archive usage before wiping
         const usageSnap = await db.doc(`users/${uid}/meta/usage`).get()
-        if (usageSnap.exists()) {
+        if (usageSnap.exists) {
           await db.doc(`users/${uid}/meta/usage_archive_${Date.now()}`).set({
             ...usageSnap.data(),
             archivedAt: new Date().toISOString(),
