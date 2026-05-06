@@ -154,6 +154,87 @@ function TD({ children, style }: { children?: React.ReactNode; style?: React.CSS
   )
 }
 
+function DevOpsCard({ adminSecret, users }: { adminSecret: string; users: UserStat[] }) {
+  const [selectedUid, setSelectedUid] = useState(users[0]?.uid ?? '')
+  const [status,  setStatus]  = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const run = async (op: string) => {
+    if (!selectedUid) { setStatus('Select a user first'); return }
+    setLoading(true)
+    setStatus('Running…')
+    try {
+      const res  = await fetch('/api/dev-ops', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-secret': adminSecret },
+        body:    JSON.stringify({ op, uid: selectedUid }),
+      })
+      const data = await res.json()
+      setStatus(data.message ?? (data.ok ? '✓ Done' : `Error: ${data.error}`))
+    } catch (e) {
+      setStatus(`Error: ${e}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const btn = (label: string, op: string, colour: string) => (
+    <button
+      key={op}
+      onClick={() => run(op)}
+      disabled={loading}
+      style={{
+        border: `1px solid ${colour}`, color: colour, background: 'transparent',
+        borderRadius: 5, padding: '6px 12px', fontSize: 11,
+        fontFamily: 'monospace', cursor: loading ? 'not-allowed' : 'pointer',
+        opacity: loading ? 0.5 : 1, letterSpacing: '0.02em',
+      }}
+    >
+      {label}
+    </button>
+  )
+
+  return (
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '18px 20px' }}>
+      <div style={{ fontWeight: 700, fontSize: 14, color: C.text, marginBottom: 14 }}>Dev Operations</div>
+
+      {/* User picker */}
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ fontSize: 11, color: C.textSub, display: 'block', marginBottom: 5 }}>Target user</label>
+        <select
+          value={selectedUid}
+          onChange={e => setSelectedUid(e.target.value)}
+          style={{ border: `1px solid ${C.border}`, borderRadius: 5, padding: '5px 8px', fontSize: 12, color: C.text, background: C.bg, fontFamily: 'monospace', minWidth: 300 }}
+        >
+          {users.map(u => (
+            <option key={u.uid} value={u.uid}>
+              {u.name || u.email} — {u.uid.slice(0, 12)}…
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Operation buttons */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+        {btn('Trigger scan (7d)', 'trigger_scan', C.brass)}
+        {btn('Re-analyse all active', 'reanalyse_all', '#3D7A6B')}
+        {btn('Calendar check', 'calendar_check', '#4A7FA5')}
+        {btn('Flush items + signals', 'flush_items', C.red)}
+      </div>
+
+      {status && (
+        <div style={{
+          fontFamily: 'monospace', fontSize: 11,
+          color: status.startsWith('Error') ? C.red : C.green,
+          background: C.bg, borderRadius: 5, padding: '6px 10px',
+        }}>
+          {loading ? '⟳ ' : ''}{status}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function TableWrap({ children }: { children: React.ReactNode }) {
   return <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>{children}</div>
 }
@@ -465,6 +546,11 @@ export default function AdminPage() {
       {/* Settings panel */}
       <div style={{ marginBottom:28 }}>
         <AdminSettingsPanel adminSecret={secret} />
+      </div>
+
+      {/* Dev operations */}
+      <div style={{ marginBottom:28 }}>
+        <DevOpsCard adminSecret={secret} users={users} />
       </div>
 
       {/* Deleted users */}
