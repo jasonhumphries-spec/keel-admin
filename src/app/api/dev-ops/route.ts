@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
           .get()
 
         const itemIds = snap.docs.map(d => d.id)
-        let done = 0, failed = 0
+        let done = 0, failed = 0, skipped = 0
         const errors: string[] = []
 
         // Process in batches of 3
@@ -69,7 +69,8 @@ export async function POST(req: NextRequest) {
                 body:    JSON.stringify({ uid, itemId }),
               })
               if (res.ok) {
-                done++
+                const data = await res.json().catch(() => ({}))
+                if (data.skipped) skipped++; else done++
               } else {
                 failed++
                 const text = await res.text().catch(() => res.status.toString())
@@ -82,11 +83,10 @@ export async function POST(req: NextRequest) {
           }))
         }
 
-        const firstError = errors[0] ?? ''
         return NextResponse.json({
           ok: failed === 0,
-          message: `Re-analysed ${done} / ${itemIds.length} items${failed > 0 ? ` (${failed} failed — ${firstError})` : ''}`,
-          done, failed, total: itemIds.length, errors: errors.slice(0, 5),
+          message: `Re-analysed ${done}${skipped > 0 ? `, skipped ${skipped} (deleted threads)` : ''}, ${failed} failed of ${itemIds.length}${errors.length > 0 ? ` — ${errors[0]}` : ''}`,
+          done, skipped, failed, total: itemIds.length, errors: errors.slice(0, 5),
         })
       }
 
