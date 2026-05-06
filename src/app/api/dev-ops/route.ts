@@ -48,6 +48,41 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, message: `Deleted ${total} docs from items + signals` })
       }
 
+      // ── Full account reset — wipes everything so user goes through onboarding again ──
+      case 'reset_account': {
+        const allCols = ['items', 'signals', 'outbound', 'payments', 'categories', 'categoryHints', 'scanRuns', 'accounts']
+        let total = 0
+
+        // Archive usage before wiping
+        const usageSnap = await db.doc(`users/${uid}/meta/usage`).get()
+        if (usageSnap.exists()) {
+          await db.doc(`users/${uid}/meta/usage_archive_${Date.now()}`).set({
+            ...usageSnap.data(),
+            archivedAt: new Date().toISOString(),
+            reason: 'admin_reset',
+          })
+        }
+
+        for (const col of allCols) {
+          const snap = await db.collection(`users/${uid}/${col}`).get()
+          const batch = db.batch()
+          snap.docs.forEach(d => batch.delete(d.ref))
+          await batch.commit()
+          total += snap.size
+        }
+
+        // Delete meta docs except usage archives
+        const metaSnap = await db.collection(`users/${uid}/meta`).get()
+        const metaBatch = db.batch()
+        metaSnap.docs.forEach(d => {
+          if (!d.id.startsWith('usage_archive_')) metaBatch.delete(d.ref)
+        })
+        await metaBatch.commit()
+        total += metaSnap.size
+
+        return NextResponse.json({ ok: true, message: `Full reset: deleted ${total} docs. User will go through onboarding on next sign-in.` })
+      }
+
       // ── Re-analyse all active items ───────────────────────────────────────
       case 'reanalyse_all': {
         const snap = await db.collection(`users/${uid}/items`)
