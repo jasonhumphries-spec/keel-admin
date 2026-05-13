@@ -208,7 +208,7 @@ function DevOpsCard({ adminSecret, users }: { adminSecret: string; users: UserSt
         >
           {users.map(u => (
             <option key={u.uid} value={u.uid}>
-              {u.name || u.email} — {u.uid.slice(0, 12)}…
+              {[u.name, u.email].filter(Boolean).join(' · ')}
             </option>
           ))}
         </select>
@@ -328,7 +328,7 @@ function UserDrillDown({ users, adminSecret }: { users: UserStat[]; adminSecret:
         >
           <option value="">Select a user…</option>
           {users.map(u => (
-            <option key={u.uid} value={u.uid}>{u.name || u.email} — {u.scanCount} scan{u.scanCount !== 1 ? 's' : ''}</option>
+            <option key={u.uid} value={u.uid}>{[u.name, u.email].filter(Boolean).join(' · ')} — {u.scanCount} scan{u.scanCount !== 1 ? 's' : ''}</option>
           ))}
         </select>
         {selectedUser && (
