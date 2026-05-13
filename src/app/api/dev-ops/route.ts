@@ -20,6 +20,23 @@ function getAdminDb() {
 
 const KEEL_APP_URL = process.env.KEEL_APP_URL ?? 'https://www.jaison.app'
 
+/** Delete all docs in a collection in chunks — avoids Firestore 500-op batch limit */
+async function deleteCollection(db: ReturnType<typeof getFirestore>, path: string): Promise<number> {
+  const snap = await db.collection(path).get()
+  if (snap.empty) return 0
+  // Split into chunks of 400
+  const chunks: typeof snap.docs[] = []
+  for (let i = 0; i < snap.docs.length; i += 400) {
+    chunks.push(snap.docs.slice(i, i + 400))
+  }
+  for (const chunk of chunks) {
+    const batch = db.batch()
+    chunk.forEach(d => batch.delete(d.ref))
+    await batch.commit()
+  }
+  return snap.size
+}
+
 export async function POST(req: NextRequest) {
   const secret = req.headers.get('x-admin-secret')
   if (secret !== process.env.ADMIN_SECRET) {
@@ -39,18 +56,14 @@ export async function POST(req: NextRequest) {
         const cols = ['items', 'signals']
         let total  = 0
         for (const col of cols) {
-          const snap = await db.collection(`users/${uid}/${col}`).get()
-          const batch = db.batch()
-          snap.docs.forEach(d => batch.delete(d.ref))
-          await batch.commit()
-          total += snap.size
+          total += await deleteCollection(db, `users/${uid}/${col}`)
         }
         return NextResponse.json({ ok: true, message: `Deleted ${total} docs from items + signals` })
       }
 
       // ── Full account reset — wipes everything so user goes through onboarding again ──
       case 'reset_account': {
-        const allCols = ['items', 'signals', 'outbound', 'payments', 'categories', 'categoryHints', 'scanRuns', 'accounts']
+        const allCols = ['items', 'signals', 'outbound', 'payments', 'categories', 'categoryHints', 'scanRuns', 'accounts', 'preferences']
         let total = 0
 
         // Archive usage before wiping
@@ -63,24 +76,40 @@ export async function POST(req: NextRequest) {
           })
         }
 
+        // Delete all subcollections in chunks (handles > 500 docs)
         for (const col of allCols) {
-          const snap = await db.collection(`users/${uid}/${col}`).get()
-          const batch = db.batch()
-          snap.docs.forEach(d => batch.delete(d.ref))
-          await batch.commit()
-          total += snap.size
+          total += await deleteCollection(db, `users/${uid}/${col}`)
         }
 
-        // Delete meta docs except usage archives
+        // Delete meta docs except usage archives (chunked)
         const metaSnap = await db.collection(`users/${uid}/meta`).get()
-        const metaBatch = db.batch()
-        metaSnap.docs.forEach(d => {
-          if (!d.id.startsWith('usage_archive_')) metaBatch.delete(d.ref)
-        })
-        await metaBatch.commit()
-        total += metaSnap.size
+        const metaDocs = metaSnap.docs.filter(d => !d.id.startsWith('usage_archive_'))
+        for (let i = 0; i < metaDocs.length; i += 400) {
+          const batch = db.batch()
+          metaDocs.slice(i, i + 400).forEach(d => batch.delete(d.ref))
+          await batch.commit()
+        }
+        total += metaDocs.length
 
-        return NextResponse.json({ ok: true, message: `Full reset: deleted ${total} docs. User will go through onboarding on next sign-in.` })
+        // Reset the root users/{uid} doc — clear scan/watch state so user
+        // is treated as fresh. Preserve uid and email for identification.
+        const rootSnap = await db.doc(`users/${uid}`).get()
+        if (rootSnap.exists) {
+          await db.doc(`users/${uid}`).set({
+            uid,
+            email:                rootSnap.data()?.email ?? '',
+            displayName:          rootSnap.data()?.displayName ?? '',
+            // Clear all scan/watch state
+            autoScanEnabled:      false,
+            watchStatus:          'inactive',
+            watchHistoryId:       null,
+            watchExpiry:          null,
+            lastBackgroundScanAt: null,
+            updatedAt:            new Date(),
+          })
+        }
+
+        return NextResponse.json({ ok: true, message: `Full reset: deleted ${total} docs + cleared root state. User will go through onboarding on next sign-in.` })
       }
 
       // ── Re-analyse all active items ───────────────────────────────────────
