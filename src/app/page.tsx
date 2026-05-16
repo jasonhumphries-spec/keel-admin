@@ -158,6 +158,8 @@ function DevOpsCard({ adminSecret, users }: { adminSecret: string; users: UserSt
   const [selectedUid, setSelectedUid] = useState(users[0]?.uid ?? '')
   const [status,  setStatus]  = useState('')
   const [loading, setLoading] = useState(false)
+  const [expireStatus,  setExpireStatus]  = useState('')
+  const [expireLoading, setExpireLoading] = useState(false)
 
   const run = async (op: string) => {
     if (!selectedUid) { setStatus('Select a user first'); return }
@@ -175,6 +177,29 @@ function DevOpsCard({ adminSecret, users }: { adminSecret: string; users: UserSt
       setStatus(`Error: ${e}`)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const runExpire = async (allUsers: boolean) => {
+    setExpireLoading(true)
+    setExpireStatus('Running…')
+    try {
+      const body = allUsers ? {} : { uid: selectedUid }
+      const res  = await fetch('/api/admin/expire-items', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-secret': adminSecret },
+        body:    JSON.stringify(body),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setExpireStatus(`✓ archived=${data.archived} overdue=${data.overdue} rescored=${data.rescored} (${data.users} user${data.users === 1 ? '' : 's'})`)
+      } else {
+        setExpireStatus(`Error: ${data.error}`)
+      }
+    } catch (e) {
+      setExpireStatus(`Error: ${e}`)
+    } finally {
+      setExpireLoading(false)
     }
   }
 
@@ -222,6 +247,32 @@ function DevOpsCard({ adminSecret, users }: { adminSecret: string; users: UserSt
         {btn('Flush items + signals', 'flush_items', C.red)}
         {btn('Full account reset', 'reset_account', C.red)}
         {btn('Ping keel app', 'ping', C.textDim)}
+      </div>
+
+      {/* Expiry + proximity rescore */}
+      <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
+        <div style={{ fontSize: 11, color: C.textSub, marginBottom: 8 }}>Expiry &amp; proximity rescore</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+          <button
+            onClick={() => runExpire(false)}
+            disabled={expireLoading || !selectedUid}
+            style={{ border: `1px solid #9C5E2B`, color: '#9C5E2B', background: 'transparent', borderRadius: 5, padding: '6px 12px', fontSize: 11, fontFamily: 'monospace', cursor: expireLoading ? 'not-allowed' : 'pointer', opacity: expireLoading ? 0.5 : 1 }}
+          >
+            Run expiry (this user)
+          </button>
+          <button
+            onClick={() => runExpire(true)}
+            disabled={expireLoading}
+            style={{ border: `1px solid #9C5E2B`, color: '#9C5E2B', background: 'transparent', borderRadius: 5, padding: '6px 12px', fontSize: 11, fontFamily: 'monospace', cursor: expireLoading ? 'not-allowed' : 'pointer', opacity: expireLoading ? 0.5 : 1 }}
+          >
+            Run expiry (all users)
+          </button>
+        </div>
+        {expireStatus && (
+          <div style={{ fontFamily: 'monospace', fontSize: 11, color: expireStatus.startsWith('Error') ? C.red : C.green, marginTop: 4 }}>
+            {expireStatus}
+          </div>
+        )}
       </div>
 
       {status && (
