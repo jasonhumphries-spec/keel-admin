@@ -160,6 +160,8 @@ function DevOpsCard({ adminSecret, users }: { adminSecret: string; users: UserSt
   const [loading, setLoading] = useState(false)
   const [expireStatus,  setExpireStatus]  = useState('')
   const [expireLoading, setExpireLoading] = useState(false)
+  const [backfillStatus,  setBackfillStatus]  = useState('')
+  const [backfillLoading, setBackfillLoading] = useState(false)
 
   const run = async (op: string) => {
     if (!selectedUid) { setStatus('Select a user first'); return }
@@ -200,6 +202,29 @@ function DevOpsCard({ adminSecret, users }: { adminSecret: string; users: UserSt
       setExpireStatus(`Error: ${e}`)
     } finally {
       setExpireLoading(false)
+    }
+  }
+
+  const runBackfill = async () => {
+    if (!selectedUid) { setBackfillStatus('Select a user first'); return }
+    setBackfillLoading(true)
+    setBackfillStatus('Running…')
+    try {
+      const res  = await fetch('/api/admin/backfill-promotional', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-secret': adminSecret },
+        body:    JSON.stringify({ uid: selectedUid }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setBackfillStatus(`✓ inspected=${data.inspected} tagged=${data.tagged}`)
+      } else {
+        setBackfillStatus(`Error: ${data.error}`)
+      }
+    } catch (e) {
+      setBackfillStatus(`Error: ${e}`)
+    } finally {
+      setBackfillLoading(false)
     }
   }
 
@@ -271,6 +296,28 @@ function DevOpsCard({ adminSecret, users }: { adminSecret: string; users: UserSt
         {expireStatus && (
           <div style={{ fontFamily: 'monospace', fontSize: 11, color: expireStatus.startsWith('Error') ? C.red : C.green, marginTop: 4 }}>
             {expireStatus}
+          </div>
+        )}
+      </div>
+
+      {/* Backfill promotional tags */}
+      <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
+        <div style={{ fontSize: 11, color: C.textSub, marginBottom: 8 }}>Backfill promotional tags</div>
+        <div style={{ fontSize: 10, color: C.textDim, marginBottom: 8, lineHeight: 1.5 }}>
+          Tags existing quietly-logged items as <code>autoQuietedReason: 'promotional'</code> so they populate the dashboard&apos;s &ldquo;Recent offers&rdquo; section. Detection uses AI summary patterns and sender hints; skips items already tagged. Safe to run multiple times.
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+          <button
+            onClick={runBackfill}
+            disabled={backfillLoading || !selectedUid}
+            style={{ border: `1px solid #A87878`, color: '#A87878', background: 'transparent', borderRadius: 5, padding: '6px 12px', fontSize: 11, fontFamily: 'monospace', cursor: backfillLoading ? 'not-allowed' : 'pointer', opacity: backfillLoading ? 0.5 : 1 }}
+          >
+            Backfill promotional (this user)
+          </button>
+        </div>
+        {backfillStatus && (
+          <div style={{ fontFamily: 'monospace', fontSize: 11, color: backfillStatus.startsWith('Error') ? C.red : C.green, marginTop: 4 }}>
+            {backfillStatus}
           </div>
         )}
       </div>
