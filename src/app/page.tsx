@@ -162,6 +162,8 @@ function DevOpsCard({ adminSecret, users }: { adminSecret: string; users: UserSt
   const [expireLoading, setExpireLoading] = useState(false)
   const [backfillStatus,  setBackfillStatus]  = useState('')
   const [backfillLoading, setBackfillLoading] = useState(false)
+  const [restoreStatus,   setRestoreStatus]   = useState('')
+  const [restoreLoading,  setRestoreLoading]  = useState(false)
 
   const run = async (op: string) => {
     if (!selectedUid) { setStatus('Select a user first'); return }
@@ -225,6 +227,29 @@ function DevOpsCard({ adminSecret, users }: { adminSecret: string; users: UserSt
       setBackfillStatus(`Error: ${e}`)
     } finally {
       setBackfillLoading(false)
+    }
+  }
+
+  const runRestore = async () => {
+    if (!selectedUid) { setRestoreStatus('Select a user first'); return }
+    setRestoreLoading(true)
+    setRestoreStatus('Running…')
+    try {
+      const res  = await fetch('/api/admin/restore-cal-quieted', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-secret': adminSecret },
+        body:    JSON.stringify({ uid: selectedUid }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setRestoreStatus(`✓ inspected=${data.inspected} restored=${data.restored}`)
+      } else {
+        setRestoreStatus(`Error: ${data.error}`)
+      }
+    } catch (e) {
+      setRestoreStatus(`Error: ${e}`)
+    } finally {
+      setRestoreLoading(false)
     }
   }
 
@@ -318,6 +343,28 @@ function DevOpsCard({ adminSecret, users }: { adminSecret: string; users: UserSt
         {backfillStatus && (
           <div style={{ fontFamily: 'monospace', fontSize: 11, color: backfillStatus.startsWith('Error') ? C.red : C.green, marginTop: 4 }}>
             {backfillStatus}
+          </div>
+        )}
+      </div>
+
+      {/* Restore calendar-quieted items */}
+      <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
+        <div style={{ fontSize: 11, color: C.textSub, marginBottom: 8 }}>Restore calendar-quieted items</div>
+        <div style={{ fontSize: 10, color: C.textDim, marginBottom: 8, lineHeight: 1.5 }}>
+          One-shot recovery for items previously auto-quieted because their event was on the user&apos;s calendar (school trips, appointments, etc.). Sets <code>status=&apos;new&apos;</code> and <code>aiImportanceScore=0.45</code> (Medium). Skips manually-priorities items. Safe to re-run.
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+          <button
+            onClick={runRestore}
+            disabled={restoreLoading || !selectedUid}
+            style={{ border: `1px solid #3D7A6B`, color: '#3D7A6B', background: 'transparent', borderRadius: 5, padding: '6px 12px', fontSize: 11, fontFamily: 'monospace', cursor: restoreLoading ? 'not-allowed' : 'pointer', opacity: restoreLoading ? 0.5 : 1 }}
+          >
+            Restore cal-quieted (this user)
+          </button>
+        </div>
+        {restoreStatus && (
+          <div style={{ fontFamily: 'monospace', fontSize: 11, color: restoreStatus.startsWith('Error') ? C.red : C.green, marginTop: 4 }}>
+            {restoreStatus}
           </div>
         )}
       </div>
